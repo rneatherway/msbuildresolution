@@ -132,6 +132,8 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
             Environment.CurrentDirectory <- fsprojAbsDirectory
             { new System.IDisposable with member x.Dispose() = Environment.CurrentDirectory <- dir }
         use engine = new Microsoft.Build.Evaluation.ProjectCollection()
+        let host = new HostCompile()
+        engine.HostServices.RegisterHostObject(fsprojFullPath, "CoreCompile", "Fsc", host)
 
         let projectInstanceFromFullPath fsprojFullPath =
             use stream = new FileStream(fsprojFullPath, FileMode.Open)
@@ -140,35 +142,28 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
             let project = engine.LoadProject(xmlReader, FullPath=fsprojFullPath)
 
             project.SetGlobalProperty("BuildingInsideVisualStudio", "true") |> ignore
-            project.SetGlobalProperty("TraceDesignTime", "true") |> ignore
             for (prop, value) in properties do
                 project.SetProperty(prop, value) |> ignore
 
-            project
+            project.CreateProjectInstance()
 
         let project = projectInstanceFromFullPath fsprojFullPath
-        let directory = project.DirectoryPath
+        let directory = project.Directory
 
         let getprop (p: Microsoft.Build.Execution.ProjectInstance) s =
             let v = p.GetPropertyValue s
             if String.IsNullOrWhiteSpace v then None
             else Some v
 
+        let outFileOpt = getprop project "TargetPath"
 
         let log = match logOpt with
                   | None -> []
                   | Some l -> [l :> ILogger]
 
-        let host = new HostCompile()
-        project.ProjectCollection.HostServices.RegisterHostObject(fsprojFullPath, "CoreCompile", "Fsc", host)
-        use xx = host.CaptureSourcesAndFlagsWithoutBuildingForABit()
-        project.IsBuildEnabled <- true
-        let project = project.CreateProjectInstance()
         project.Build([| "Build" |], log) |> ignore
 
         let getItems s = [ for f in project.GetItems(s) -> mkAbsolute directory f.EvaluatedInclude ]
-
-        let outFileOpt = getprop project "TargetPath"
 
         let projectReferences =
               [ for cp in project.GetItems("ProjectReference") do
