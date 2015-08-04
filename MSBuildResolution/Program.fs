@@ -367,8 +367,13 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
     static member Parse(fsprojFileName:string, ?properties, ?enableLogging) = new FSharpProjectFileInfo(fsprojFileName, ?properties=properties, ?enableLogging=enableLogging)
 
 [<EntryPoint>]
-let main argv = 
+let main argv =
+  try
     let p = FSharpProjectFileInfo.Parse(argv.[0], enableLogging=true)
-    printfn "%s" p.LogOutput
+    //printfn "%s" p.LogOutput
     printfn "%A" p.References
-    0 // return an integer exit code
+    0
+  with e ->
+    printfn "FAILED: %A" e.Message
+    printfn "%s" e.StackTrace
+    1

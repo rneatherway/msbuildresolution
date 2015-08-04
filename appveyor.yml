@@ -1,0 +1,7 @@
+matrix:
+  fast_finish: true
+build:
+  project: MSBuildResolution\MSBuildResolution.sln
+test_script:
+  - MSBuildResolution/bin/Debug/MSBuildResolution.exe MSBuildResolution/MSBuildResolution.fsproj
+  
