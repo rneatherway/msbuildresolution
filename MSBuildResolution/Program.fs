@@ -134,6 +134,7 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
         use engine = new Microsoft.Build.Evaluation.ProjectCollection()
         let host = new HostCompile()
         engine.HostServices.RegisterHostObject(fsprojFullPath, "CoreCompile", "Fsc", host)
+        engine.SetGlobalProperty("VisualStudioVersion", "14.0") |> ignore
 
         let projectInstanceFromFullPath fsprojFullPath =
             use stream = new FileStream(fsprojFullPath, FileMode.Open)
@@ -366,10 +367,33 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
     member x.LogOutput = logOutput
     static member Parse(fsprojFileName:string, ?properties, ?enableLogging) = new FSharpProjectFileInfo(fsprojFileName, ?properties=properties, ?enableLogging=enableLogging)
 
-[<EntryPoint>]
-let main argv =
+open System.Reflection
+let RedirectAssembly shortName (targetVersion : Version) publicKeyToken =
+    let rec onResolveEvent = new ResolveEventHandler( fun sender evArgs ->
+        let requestedAssembly = 
+            AssemblyName(evArgs.Name)
+        if requestedAssembly.Name <> shortName 
+        then 
+            Unchecked.defaultof<Assembly>
+        else 
+            printfn 
+                "Redirecting assembly load of %s ,\tloaded by %s" 
+                evArgs.Name 
+                (if evArgs.RequestingAssembly = null then 
+                     "(unknown)"
+                 else 
+                     evArgs.RequestingAssembly.FullName)
+            requestedAssembly.Version <- targetVersion
+            requestedAssembly.SetPublicKeyToken (AssemblyName(sprintf "x, PublicKeyToken=%s" publicKeyToken).GetPublicKeyToken())
+            requestedAssembly.CultureInfo <- System.Globalization.CultureInfo.InvariantCulture
+            AppDomain.CurrentDomain.remove_AssemblyResolve(onResolveEvent)
+            Assembly.Load (requestedAssembly)
+            )
+    AppDomain.CurrentDomain.add_AssemblyResolve(onResolveEvent)
+
+let crack p = 
   try
-    let p = FSharpProjectFileInfo.Parse(argv.[0], enableLogging=true)
+    let p = FSharpProjectFileInfo.Parse(p, enableLogging=true)
     //printfn "%s" p.LogOutput
     printfn "%A" p.References
     0
@@ -377,3 +401,11 @@ let main argv =
     printfn "FAILED: %A" e.Message
     printfn "%s" e.StackTrace
     1
+
+[<EntryPoint>]
+let main argv =
+  RedirectAssembly "Microsoft.Build" (Version("12.0.0.0")) "b03f5f7f11d50a3a"
+  RedirectAssembly "Microsoft.Build.Engine" (Version("12.0.0.0")) "b03f5f7f11d50a3a"
+  RedirectAssembly "Microsoft.Build.Framework" (Version("12.0.0.0")) "b03f5f7f11d50a3a"
+  
+  crack argv.[0]
