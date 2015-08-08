@@ -370,6 +370,13 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
 open System.Reflection
 let RedirectAssembly shortName (targetVersion : Version) publicKeyToken =
     let rec onResolveEvent = new ResolveEventHandler( fun sender evArgs ->
+        printfn 
+                "Attempting assembly load redirection of %s ,\tloaded by %s" 
+                evArgs.Name 
+                (if evArgs.RequestingAssembly = null then 
+                     "(unknown)"
+                 else 
+                     evArgs.RequestingAssembly.FullName)
         let requestedAssembly = 
             AssemblyName(evArgs.Name)
         if requestedAssembly.Name <> shortName 
