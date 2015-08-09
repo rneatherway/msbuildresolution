@@ -379,6 +379,8 @@ let RedirectAssembly shortName (targetVersion : Version) publicKeyToken =
                      evArgs.RequestingAssembly.FullName)
         let requestedAssembly = 
             AssemblyName(evArgs.Name)
+        printfn "Created requestedAssemby='%A'" requestedAssembly
+        printfn "Comparing '%s' = '%s'" requestedAssembly.Name shortName
         if requestedAssembly.Name <> shortName 
         then 
             Unchecked.defaultof<Assembly>
