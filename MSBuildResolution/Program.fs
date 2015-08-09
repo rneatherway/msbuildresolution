@@ -134,7 +134,13 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
         use engine = new Microsoft.Build.Evaluation.ProjectCollection()
         let host = new HostCompile()
         engine.HostServices.RegisterHostObject(fsprojFullPath, "CoreCompile", "Fsc", host)
-        engine.SetGlobalProperty("VisualStudioVersion", "14.0") |> ignore
+
+        let visualStudio = @"C:\Program Files (x86)\MSBuild\Microsoft\VisualStudio\"
+        let vsVersion = 
+          List.tryFind (fun ver -> File.Exists (visualStudio + "v" + ver + @"\FSharp\Microsoft.FSharp.targets")) [ "14.0"; "12.0" ]
+          |> function Some x -> x
+                    | None   -> "11.0"
+        engine.SetGlobalProperty("VisualStudioVersion", vsVersion) |> ignore
 
         let projectInstanceFromFullPath fsprojFullPath =
             use stream = new FileStream(fsprojFullPath, FileMode.Open)
@@ -403,8 +409,8 @@ let crack p =
 
 [<EntryPoint>]
 let main argv =
-  RedirectAssembly "Microsoft.Build" (Version("12.0.0.0")) "b03f5f7f11d50a3a"
-  RedirectAssembly "Microsoft.Build.Engine" (Version("12.0.0.0")) "b03f5f7f11d50a3a"
-  RedirectAssembly "Microsoft.Build.Framework" (Version("12.0.0.0")) "b03f5f7f11d50a3a"
+  RedirectAssembly "Microsoft.Build" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
+  RedirectAssembly "Microsoft.Build.Engine" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
+  RedirectAssembly "Microsoft.Build.Framework" (Version("14.0.0.0")) "b03f5f7f11d50a3a"
   
   crack argv.[0]
