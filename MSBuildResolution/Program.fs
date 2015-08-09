@@ -370,33 +370,23 @@ type FSharpProjectFileInfo (fsprojFileName:string, ?properties, ?enableLogging) 
 open System.Reflection
 let RedirectAssembly shortName (targetVersion : Version) publicKeyToken =
     let rec onResolveEvent = new ResolveEventHandler( fun sender evArgs ->
-        printfn 
-                "Attempting assembly load redirection of %s ,\tloaded by %s" 
-                evArgs.Name 
-                (if evArgs.RequestingAssembly = null then 
-                     "(unknown)"
-                 else 
-                     evArgs.RequestingAssembly.FullName)
-        let requestedAssembly = 
-            AssemblyName(evArgs.Name)
-        printfn "Created requestedAssemby='%A'" requestedAssembly
-        printfn "Comparing '%s' = '%s'" requestedAssembly.Name shortName
+        printfn "*** Entering handler intended to redirect '%s' to version '%s'. Triggered by failed load of '%s'."
+               shortName  (targetVersion.ToString()) evArgs.Name
+        let requestedAssembly = AssemblyName(evArgs.Name)
+//        printfn "Created requestedAssemby='%A'" requestedAssembly
+//        printfn "Comparing '%s' = '%s'" requestedAssembly.Name shortName
         if requestedAssembly.Name <> shortName 
         then 
             Unchecked.defaultof<Assembly>
         else 
-            printfn 
-                "Redirecting assembly load of %s ,\tloaded by %s" 
-                evArgs.Name 
-                (if evArgs.RequestingAssembly = null then 
-                     "(unknown)"
-                 else 
-                     evArgs.RequestingAssembly.FullName)
             requestedAssembly.Version <- targetVersion
             requestedAssembly.SetPublicKeyToken (AssemblyName(sprintf "x, PublicKeyToken=%s" publicKeyToken).GetPublicKeyToken())
             requestedAssembly.CultureInfo <- System.Globalization.CultureInfo.InvariantCulture
             AppDomain.CurrentDomain.remove_AssemblyResolve(onResolveEvent)
-            Assembly.Load (requestedAssembly)
+            printfn "Loading '%A'" requestedAssembly
+            let a = Assembly.Load (requestedAssembly)
+            printfn "Load complete."
+            a
             )
     AppDomain.CurrentDomain.add_AssemblyResolve(onResolveEvent)
 
